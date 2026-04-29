@@ -1,5 +1,5 @@
-# Multi-stage build for FastAPI backend
-FROM python:3.11-slim as builder
+# Simple, reliable Dockerfile for FastAPI
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -9,43 +9,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
+# Copy requirements first (for better caching)
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --user --no-cache-dir -r requirements.txt
-
-# Final stage
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Install Python dependencies globally
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
 # Set environment variables
-ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/'); print('OK')" || exit 1
+ENV PORT=8000
 
 # Expose port
 EXPOSE 8000
+
+# Health check (optional)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()" || exit 1
 
 # Run application
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
