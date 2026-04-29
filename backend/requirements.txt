@@ -5,7 +5,9 @@ pymongo
 google-generativeai
 pydantic
 pydantic-settings
+pydantic[email]
 python-dotenv
 websockets
 python-jose[cryptography]
 passlib[bcrypt]
+email-validator
